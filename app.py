@@ -184,13 +184,11 @@ def image_to_base64(image):
     _, buffer = cv2.imencode('.jpg', image)
     return base64.b64encode(buffer).decode('utf-8')
 
-
 def decode_base64_image_1(base64_string):
     # Decode the base64 image into a numpy array
     image_data = base64.b64decode(base64_string)
     image_np = np.array(Image.open(io.BytesIO(image_data)))
     return image_np
-
 
 def detect_and_crop_faces(image):
     # Convert image to grayscale for better face detection
@@ -209,7 +207,6 @@ def detect_and_crop_faces(image):
         cropped_faces.append(face)
 
     return cropped_faces
-
 
 def convert_to_grayscale(image):
     # Convert the cropped face image to grayscale (black and white)
@@ -377,7 +374,7 @@ def compare_faces():
         # Convert input embedding to numpy array for comparison
         embedding_input = np.array(embedding_input)
 
-        # Set a threshold for Euclidean distance to consider two faces similar
+        # Set a threshold for Euclidean distance to consider two faces
         threshold = 0.5
         matching_user_id = None
         min_distance = float('inf')
