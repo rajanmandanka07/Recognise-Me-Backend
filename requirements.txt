@@ -1,5 +1,15 @@
-Flask
-numpy
-opencv-python
-mediapipe
+# Flask and related packages
+Flask==2.3.2
+Flask-CORS==3.0.10
+mysql-connector-python==8.0.33
+
+# Computer Vision and Media Processing
+opencv-python==4.8.0.74
+mediapipe==0.9.3.0
+
+# Scientific computing
+numpy==1.24.3
 scipy
+
+# Image processing
+Pillow==10.0.1
