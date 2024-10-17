@@ -1,0 +1,87 @@
+-- SQLBook: Markup
+Creating DATABASE RecognizeMe;
+-- SQLBook: Code
+CREATE DATABASE RecognizeMe;
+-- SQLBook: Markup
+Using database RecognizeMe
+-- SQLBook: Code
+USE RecognizeMe;
+-- SQLBook: Markup
+Organizations Table
+-- SQLBook: Code
+
+CREATE TABLE organizations (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- SQLBook: Markup
+Admin Table
+-- SQLBook: Code
+CREATE TABLE admins (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    organization_id INT NOT NULL,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- SQLBook: Markup
+User Table
+-- SQLBook: Code
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    organization_id INT NOT NULL,
+    admin_id INT NOT NULL,
+    FOREIGN KEY (organization_id) REFERENCES organizations(id),
+    FOREIGN KEY (admin_id) REFERENCES admins(id),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- SQLBook: Markup
+Attendance Table
+-- SQLBook: Code
+CREATE TABLE attendance (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    attendance_date DATETIME NOT NULL,
+    status VARCHAR(10) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+-- SQLBook: Markup
+Face Data Table
+-- SQLBook: Code
+CREATE TABLE face_data (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    embedding BLOB NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+);
+-- SQLBook: Markup
+Insert Data to organizations table
+-- SQLBook: Code
+INSERT INTO organizations (name) VALUES ('Marwadi University');
+-- SQLBook: Markup
+Insert Data to admin table
+-- SQLBook: Code
+INSERT INTO admins (name, email, password, organization_id) VALUES 
+('Admin', 'admin@gmail.com', '123456', 1);
+-- SQLBook: Markup
+Show Tables
+-- SQLBook: Code
+SELECT * FROM organizations;
+
+SELECT * FROM admins;
+
+SELECT * FROM users;
+
+SELECT * FROM face_data;
+
+select * from attendance;
+-- SQLBook: Markup
+Drop Database
+-- SQLBook: Code
+DROP DATABASE RecognizeMe;
