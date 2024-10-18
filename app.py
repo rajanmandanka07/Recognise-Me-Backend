@@ -51,13 +51,11 @@ def login():
 def admin_login():
     data = request.get_json()
 
-    # Validate input
     if 'adminId' not in data or 'password' not in data:
         return jsonify({"error": "Invalid input data"}), 400
 
     # Fetch admin data
     admin = get_admin_by_email_and_password(data['adminId'], data['password'])
-    # print(admin)
 
     if admin is None:
         return jsonify({"error": "Invalid credentials"}), 401
@@ -79,7 +77,7 @@ def register_user():
     password = data['password']
     organization_id = data['organization_id']
     admin_id = data['admin_id']
-    images_base64 = data['images']  # This should be an array of base64-encoded images
+    images_base64 = data['images']
 
     # Check if the user already exists
     if get_user_by_email(email):
@@ -124,11 +122,8 @@ def register_user():
 
 @app.route('/api/admin/attendance', methods=['GET'])
 def get_all_attendance():
-    # You can add admin authorization here if needed
-
     attendance_records = get_all_attendance_records()
 
-    # Format the attendance data for the response
     formatted_attendance = [
         {
             "full_name": record['full_name'],
@@ -199,7 +194,7 @@ def compare_faces():
 
         if matching_user_id is not None:
             # Check if attendance has already been marked for today
-            current_date = datetime.now().date()  # Get the current date
+            current_date = datetime.now().date()
 
             # Query to check if there's an attendance record for the current date
             cursor.execute("""
@@ -235,7 +230,7 @@ def compare_faces():
 
             return jsonify({
                 "user_id": matching_user_id,
-                "user_name": user_name,  # Return user name
+                "user_name": user_name,
                 "euclidean_distance": min_distance,
                 "is_similar": True,
                 "message": f"Attendance marked as Present for {user_name}"
