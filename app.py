@@ -205,16 +205,16 @@ def compare_faces():
 
             attendance_record = cursor.fetchone()
 
-            if attendance_record['count'] > 0:
-                return jsonify({
-                    "message": "Attendance already marked for today",
-                    "user_id": matching_user_id,
-                    "is_similar": True,
-                    "euclidean_distance": min_distance
-                }), 200
+            # if attendance_record['count'] > 0:
+            #     return jsonify({
+            #         "message": "Attendance already marked for today",
+            #         "user_id": matching_user_id,
+            #         "is_similar": True,
+            #         "euclidean_distance": min_distance
+            #     }), 200
 
-            # Mark attendance for the matched user
-            mark_attendance(matching_user_id, "Present")
+            # Mark attendance for the matched user and return the result message
+            attendance_message = mark_attendance(matching_user_id, "Present")
 
             # Retrieve user data (name) by user_id from the 'users' table
             cursor.execute("SELECT full_name FROM users WHERE id = %s", (matching_user_id,))
@@ -233,11 +233,11 @@ def compare_faces():
                 "user_name": user_name,
                 "euclidean_distance": min_distance,
                 "is_similar": True,
-                "message": f"Attendance marked as Present for {user_name}"
+                "message": f"{attendance_message} for {user_name}"
             }), 200
 
-    cursor.close()
-    connection.close()
+        cursor.close()
+        connection.close()
 
     return jsonify({
         "message": "No matching face found",

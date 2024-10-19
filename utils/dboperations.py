@@ -1,5 +1,6 @@
 import mysql.connector
 import os
+import pymysql 
 from dotenv import load_dotenv
 import json
 from datetime import datetime
@@ -102,18 +103,29 @@ def get_all_attendance_records():
 def mark_attendance(user_id, status):
     """
     Mark the attendance for a given user with the current date and time.
+    If the user already has an attendance record for the day, return a message.
     """
     connection = create_connection()
-    cursor = connection.cursor()
-
-    # Get the current date and time
+    cursor = connection.cursor(dictionary=True)
     current_datetime = datetime.now()
 
-    # Insert the attendance record into the attendance table
-    cursor.execute(
-        "INSERT INTO attendance (user_id, attendance_date, status) VALUES (%s, %s, %s)",
-        (user_id, current_datetime, status)
-    )
-    connection.commit()
-    cursor.close()
-    connection.close()
+    try:
+        # Insert the attendance record into the attendance table
+        cursor.execute(
+            "INSERT INTO attendance (user_id, attendance_date, status) VALUES (%s, %s, %s)",
+            (user_id, current_datetime, status)
+        )
+        connection.commit()
+
+        return f"Attendance marked for user {user_id} at {current_datetime}"
+
+    except mysql.connector.errors.IntegrityError as e:
+        # Catch the unique constraint violation error
+        if "unique_user_attendance_per_day" in str(e):
+            return f"Attendance for user {user_id} is already marked for today."
+        else:
+            return f"An error occurred: {e}"
+
+    finally:
+        cursor.close()
+        connection.close()

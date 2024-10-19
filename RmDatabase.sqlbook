@@ -52,6 +52,14 @@ CREATE TABLE attendance (
     FOREIGN KEY (user_id) REFERENCES users(id)
 );
 -- SQLBook: Markup
+Add Constrains for Unique Attendance
+-- SQLBook: Code
+ALTER TABLE attendance
+ADD attendance_day DATE GENERATED ALWAYS AS (DATE(attendance_date)) STORED;
+
+ALTER TABLE attendance
+ADD CONSTRAINT unique_user_attendance_per_day UNIQUE (user_id, attendance_day);
+-- SQLBook: Markup
 Face Data Table
 -- SQLBook: Code
 CREATE TABLE face_data (
