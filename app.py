@@ -186,6 +186,7 @@ def compare_faces():
 
             # Calculate the Euclidean distance
             euclidean_distance = euclidean(embedding_input, embedding_stored)
+            print("Euclidean distance : ", euclidean_distance)
 
             # If the distance is less than the threshold and is the smallest so far, we have a match
             if euclidean_distance < threshold and euclidean_distance < min_distance:
@@ -193,27 +194,7 @@ def compare_faces():
                 min_distance = euclidean_distance
 
         if matching_user_id is not None:
-            # Check if attendance has already been marked for today
-            current_date = datetime.now().date()
-
-            # Query to check if there's an attendance record for the current date
-            cursor.execute("""
-                SELECT COUNT(*) as count 
-                FROM attendance 
-                WHERE user_id = %s AND DATE(attendance_date) = %s
-            """, (matching_user_id, current_date))
-
-            attendance_record = cursor.fetchone()
-
-            # if attendance_record['count'] > 0:
-            #     return jsonify({
-            #         "message": "Attendance already marked for today",
-            #         "user_id": matching_user_id,
-            #         "is_similar": True,
-            #         "euclidean_distance": min_distance
-            #     }), 200
-
-            # Mark attendance for the matched user and return the result message
+            # Check and Mark attendance for the matched user and return the result message
             attendance_message = mark_attendance(matching_user_id, "Present")
 
             # Retrieve user data (name) by user_id from the 'users' table
