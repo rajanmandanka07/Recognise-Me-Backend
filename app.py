@@ -16,7 +16,7 @@ import io
 import json
 from scipy.spatial.distance import euclidean
 
-from utils.dboperations import create_connection, get_user_by_email_and_password, get_attendance_by_user_id, get_admin_by_email_and_password, get_user_by_email, create_user, store_face_embedding, get_all_attendance_records, mark_attendance
+from utils.dboperations import create_connection, get_organization_by_user_id, get_user_attendance, get_user_by_id, get_all_attendance_and_user_data, get_user_by_email_and_password, get_admin_by_email_and_password, get_user_by_email, create_user, store_face_embedding, mark_attendance
 from utils.imageoperations import decode_base64_image, get_face_embedding_mediapipe, detect_and_crop_faces, convert_to_grayscale
 
 app = Flask(__name__)
@@ -36,16 +36,42 @@ def login():
     if user is None:
         return jsonify({"error": "Invalid credentials"}), 401
 
-    # Retrieve attendance data for the user
-    attendance_records = get_attendance_by_user_id(user['id'])
+    return jsonify({"user_id": user['id'], "full_name": user['full_name']}), 200
 
-    # Use the correct column name 'attendance_date'
-    attendance_data = [
-        {"date": record['attendance_date'].strftime("%Y-%m-%d"), "status": record['status']}
-        for record in attendance_records
-    ]
+@app.route('/api/user/dashboard', methods=['POST'])
+def get_user_dashboard():
+    try:
+        data = request.get_json()
+        user_id = data.get('user_id')
 
-    return jsonify({"user_id": user['id'], "full_name": user['full_name'], "attendance": attendance_data}), 200
+        if not user_id:
+            return jsonify({"error": "User ID is required"}), 400
+
+        # Fetch user details from the database
+        user_data = get_user_by_id(user_id)
+
+        if not user_data:
+            return jsonify({"error": "User not found"}), 404
+
+        # Fetch user's attendance records
+        attendance_data = get_user_attendance(user_id)
+
+        # Fetch organization details for the user
+        organization_data = get_organization_by_user_id(user_id)
+
+        # Prepare the response data
+        response_data = {
+            "full_name": user_data['full_name'],
+            "email": user_data['email'],
+            "user_id": user_data['id'],
+            "attendance": attendance_data,
+            "organization": organization_data['name'] if organization_data else "No organization found"
+        }
+
+        return jsonify(response_data), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/api/admin/login', methods=['POST'])
 def admin_login():
@@ -122,11 +148,15 @@ def register_user():
 
 @app.route('/api/admin/attendance', methods=['GET'])
 def get_all_attendance():
-    attendance_records = get_all_attendance_records()
+    # Use the utility function to fetch data
+    attendance_records = get_all_attendance_and_user_data()
 
+    # Format the data
     formatted_attendance = [
         {
             "full_name": record['full_name'],
+            "email": record['email'],
+            "organization_name": record['organization_name'],  # Change to organization_name
             "date": record['attendance_date'].strftime("%Y-%m-%d"),
             "status": record['status']
         }

@@ -15,7 +15,6 @@ db_config = {
     'database': os.getenv('DB_NAME')
 }
 
-
 def create_connection():
     connection = None
     try:
@@ -25,6 +24,97 @@ def create_connection():
 
     return connection
 
+def get_user_by_id(user_id):
+    try:
+        connection = create_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        query = "SELECT id, full_name, email FROM users WHERE id = %s"
+        cursor.execute(query, (user_id,))
+        user_data = cursor.fetchone()
+
+        cursor.close()
+        connection.close()
+        return user_data
+    except Exception as e:
+        print(f"Error fetching user by ID: {str(e)}")
+        return None
+
+# Fetch user's attendance records
+def get_user_attendance(user_id):
+    try:
+        connection = create_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        query = "SELECT attendance_date, status FROM attendance WHERE user_id = %s"
+        cursor.execute(query, (user_id,))
+        attendance_data = cursor.fetchall()
+
+        cursor.close()
+        connection.close()
+        return attendance_data
+    except Exception as e:
+        print(f"Error fetching attendance: {str(e)}")
+        return None
+
+# Fetch organization details for a user by user ID
+def get_organization_by_user_id(user_id):
+    try:
+        connection = create_connection()
+        cursor = connection.cursor(dictionary=True)
+
+        query = """
+            SELECT o.name
+            FROM organizations o
+            JOIN users u ON u.organization_id = o.id
+            WHERE u.id = %s
+        """
+        cursor.execute(query, (user_id,))
+        organization_data = cursor.fetchone()
+
+        cursor.close()
+        connection.close()
+        return organization_data
+    except Exception as e:
+        print(f"Error fetching organization: {str(e)}")
+        return None
+
+def get_all_attendance_and_user_data():
+    query = '''
+    SELECT 
+        users.full_name, 
+        users.email, 
+        organizations.name AS organization_name,  -- Fetch the organization name
+        attendance.attendance_date, 
+        attendance.status 
+    FROM 
+        attendance 
+    JOIN 
+        users 
+    ON 
+        attendance.user_id = users.id
+    JOIN 
+        organizations  -- Join with organizations table
+    ON 
+        users.organization_id = organizations.id
+    '''
+    
+    connection = create_connection()  # Create a connection
+    if connection is None:
+        return []
+    
+    try:
+        cursor = connection.cursor(dictionary=True)  # Use dictionary cursor
+        cursor.execute(query)
+        records = cursor.fetchall()
+        return records
+    except Exception as e:
+        print(f"Error fetching attendance data: {e}")
+        return []
+    finally:
+        if connection.is_connected():
+            connection.close()
+
 def get_user_by_email_and_password(email, password):
     connection = create_connection()
     cursor = connection.cursor(dictionary=True)
@@ -33,15 +123,6 @@ def get_user_by_email_and_password(email, password):
     cursor.close()
     connection.close()
     return user
-
-def get_attendance_by_user_id(user_id):
-    connection = create_connection()
-    cursor = connection.cursor(dictionary=True)
-    cursor.execute("SELECT * FROM attendance WHERE user_id = %s", (user_id,))
-    attendance_records = cursor.fetchall()
-    cursor.close()
-    connection.close()
-    return attendance_records
 
 def get_admin_by_email_and_password(email, password):
     connection = create_connection()
@@ -85,20 +166,6 @@ def store_face_embedding(user_id, embedding):
     connection.commit()
     cursor.close()
     connection.close()
-
-def get_all_attendance_records():
-    connection = create_connection()
-    cursor = connection.cursor(dictionary=True)
-    cursor.execute("""
-        SELECT users.full_name, attendance.attendance_date, attendance.status 
-        FROM attendance
-        JOIN users ON attendance.user_id = users.id
-        ORDER BY attendance.attendance_date DESC
-    """)
-    attendance_records = cursor.fetchall()
-    cursor.close()
-    connection.close()
-    return attendance_records
 
 def mark_attendance(user_id, status):
     """
