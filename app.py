@@ -19,6 +19,8 @@ from scipy.spatial.distance import euclidean
 from utils.dboperations import create_connection, get_organization_by_user_id, get_user_attendance, get_user_by_id, get_all_attendance_and_user_data, get_user_by_email_and_password, get_admin_by_email_and_password, get_user_by_email, create_user, store_face_embedding, mark_attendance
 from utils.imageoperations import decode_base64_image, get_face_embedding_mediapipe, detect_and_crop_faces, convert_to_grayscale
 
+from scipy.spatial.distance import cosine
+
 app = Flask(__name__)
 CORS(app)
 
@@ -208,13 +210,14 @@ def compare_faces():
         threshold = 0.5
         matching_user_id = None
         min_distance = float('inf')
+        min_similarity = float('inf')
 
         # Compare input embedding with each stored embedding
         for record in face_data_records:
             user_id = record['user_id']
             embedding_stored = np.array(json.loads(record['embedding']))
 
-            # Calculate the Euclidean distance
+            # # Calculate the Euclidean distance
             euclidean_distance = euclidean(embedding_input, embedding_stored)
             print("Euclidean distance : ", euclidean_distance)
 
@@ -222,6 +225,16 @@ def compare_faces():
             if euclidean_distance < threshold and euclidean_distance < min_distance:
                 matching_user_id = user_id
                 min_distance = euclidean_distance
+            
+            # min_similarity = 0.0
+            # Calculate the cosine similarity
+            # cosine_similarity = cosine(embedding_input, embedding_stored)
+            # print("Cosine similarity : ", cosine_similarity)
+
+            # # If the similarity is below the threshold and is the smallest so far, we have a match
+            # if cosine_similarity < threshold and cosine_similarity < min_similarity:
+            #     matching_user_id = user_id
+            #     min_similarity = cosine_similarity
 
         if matching_user_id is not None:
             # Check and Mark attendance for the matched user and return the result message
