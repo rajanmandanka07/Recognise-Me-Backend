@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 import mysql.connector
 from mysql.connector import Error
 from flask_cors import CORS
-
+from queue import Queue
 import cv2
 import numpy as np
 from PIL import Image
@@ -20,9 +20,15 @@ from utils.dboperations import create_connection, get_organization_by_user_id, g
 from utils.imageoperations import decode_base64_image, get_face_embedding_mediapipe, detect_and_crop_faces, convert_to_grayscale
 
 from scipy.spatial.distance import cosine
+from deepface import DeepFace
+mp_face_mesh = mp.solutions.face_mesh
+face_mesh = mp_face_mesh.FaceMesh(static_image_mode=True, max_num_faces=1)
 
 app = Flask(__name__)
 CORS(app)
+
+# Initialize the queue for embeddings
+embeddings_queue = Queue()
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -267,6 +273,126 @@ def compare_faces():
         "message": "No matching face found",
         "is_similar": False
     }), 404
+
+@app.route('/api/mark_group_attendance', methods=['POST'])
+def process_and_mark_attendance():
+    if 'image' not in request.files:
+        return jsonify({"success": False, "message": "No image file provided."}), 400
+
+    # Step 1: Read the image from the request
+    image_file = request.files['image']
+    image_array = np.frombuffer(image_file.read(), np.uint8)
+    image = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+
+    # Step 2: Initialize Mediapipe Face Detection
+    mp_face_detection = mp.solutions.face_detection
+    face_detection = mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
+
+    # Step 3: Detect faces
+    results = face_detection.process(cv2.cvtColor(image, cv2.COLOR_BGR2RGB))
+    if not results.detections:
+        return jsonify({"success": False, "message": "No faces detected."}), 400
+
+    cropped_faces = []
+    base64_faces = []
+    h, w, _ = image.shape
+    for detection in results.detections:
+        bbox = detection.location_data.relative_bounding_box
+        x, y, width, height = (
+            int(bbox.xmin * w),
+            int(bbox.ymin * h),
+            int(bbox.width * w),
+            int(bbox.height * h),
+        )
+        face = image[y:y + height, x:x + width]
+        cropped_faces.append(face)
+
+        # Encode the cropped face as Base64
+        _, buffer = cv2.imencode('.jpg', face)
+        face_base64 = base64.b64encode(buffer).decode('utf-8')
+        base64_faces.append(face_base64)
+
+    # Step 4: Generate embeddings and push to the queue
+    for face in cropped_faces:
+        embedding = get_face_embedding_mediapipe(face)  # Use the new Mediapipe embedding function
+        
+        if embedding is not None:
+            embeddings_queue.put(embedding)
+        else:
+            print("No face landmarks detected for the current face.")
+
+    # Step 5: Retrieve all embeddings from the database
+    connection = create_connection()
+    cursor = connection.cursor(dictionary=True)
+    cursor.execute("SELECT user_id, embedding FROM face_data")
+    face_data = cursor.fetchall()
+    connection.close()
+
+    user_embedding_map = {}
+    for record in face_data:
+        user_id = record['user_id']
+        embedding = np.array(json.loads(record['embedding']))
+        user_embedding_map.setdefault(user_id, []).append(embedding)
+
+    # Print the user_embedding_map for debugging
+    # print("User Embedding Map:")
+    # for user_id, embeddings in user_embedding_map.items():
+    #     print(f"User ID: {user_id}, Embeddings Count: {len(embeddings)}")
+    #     for i, embedding in enumerate(embeddings):
+    #         print(f"  Embedding {i + 1}: {embedding}")
+
+
+    # Step 6: Process the queue and find matches
+    attendance_user_ids = []
+    while not embeddings_queue.empty():
+        target_embedding = embeddings_queue.get()
+        # target_embedding = normalize_embedding(target_embedding, 128)  # Normalize to 128 dimensions
+    
+        # Debug: Log target embedding shape
+        print(f"Target embedding shape: {len(target_embedding)}")
+
+        for user_id, embeddings in user_embedding_map.items():
+            for embedding in embeddings:
+                # embedding = normalize_embedding(embedding, 128)  # Normalize to 128 dimensions
+                
+                # Debug: Log user embedding shape
+                # print(f"User ID: {user_id}, Embedding shape: {len(embedding)}")
+                
+                # Ensure embeddings are the same length
+                if len(embedding) != len(target_embedding):
+                    print(f"Shape mismatch for User ID {user_id}. Skipping this embedding.")
+                    continue
+                
+                # Calculate Euclidean distance
+                euclidean_distance = euclidean(embedding, target_embedding)
+                euclidean_distance = euclidean_distance - 1.5
+                print(f"User ID: {user_id}, Distance: {euclidean_distance:.4f}")
+                
+                if euclidean_distance <= 0.5:  # Threshold
+                    attendance_user_ids.append(user_id)
+                    break
+
+
+    print(attendance_user_ids)
+
+
+    # Step 7: Mark attendance for matched users
+    marked_users = {}
+    for user_id in attendance_user_ids:
+        mark_attendance(user_id, "Present")
+        user_data = get_user_by_id(user_id)
+        if user_data:
+            marked_users[user_id] = user_data['full_name']
+
+
+    # Step 8: Return response with cropped faces and attendance info
+    return jsonify({
+        "success": True,
+        "message": "Attendance marked for detected faces.",
+        "attendance": marked_users,
+        "cropped_faces": base64_faces,  # Include Base64 encoded cropped faces for testing
+    }), 200
+
 
 if __name__ == '__main__':
     app.run(debug=True)
